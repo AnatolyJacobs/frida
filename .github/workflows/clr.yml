@@ -50,26 +50,6 @@ jobs:
           version: '6.7.0'
           cache: true
           setup-python: false
-      - name: Configure
-        run: >-
-          .\configure
-          --prefix=$Env:FRIDA_PREFIX
-          --host=windows-${{ matrix.arch }}
-          --enable-gadget
-          --enable-server
-          --enable-portal
-          --enable-inject
-          --
-          "-Dfrida_qml=auto"
-          "-Dfrida-gum:devkits=gum,gumjs"
-          "-Dfrida-core:compiler_backend=enabled"
-          "-Dfrida-core:devkits=core"
-        env:
-          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
-      - name: Compile
-        run: .\make
-      - name: Install
-        run: .\make install        
       - name: Build .NET bindings
         run: >-
           Remove-Item build -Recurse
@@ -82,6 +62,8 @@ jobs:
           --
           "-Dfrida-core:compiler_backend=disabled"
           && .\make install
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
       - name: Upload .NET bindings
         uses: actions/upload-artifact@v4
         with:
