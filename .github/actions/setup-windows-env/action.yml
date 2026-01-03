@@ -35,21 +35,6 @@ runs:
         echo "FRIDA_PREFIX=$Env:RUNNER_WORKSPACE\dist" >> $Env:GITHUB_ENV
         echo "FRIDA_VERSION=$(python releng/frida_version.py)" >> $Env:GITHUB_ENV
       shell: pwsh
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
-        aws-region: us-east-1
-    - name: Configure Cloudflare credentials
-      run: |
-        @"
-        defaults:
-            domain: frida.re
-            email: ${{ inputs.cloudflare-email }}
-            token: ${{ inputs.cloudflare-token }}
-        "@ | Set-Content -Path $HOME\.cfcli.yml -NoNewline
-      shell: pwsh
     - name: Install Python
       uses: actions/setup-python@v5
       with:
@@ -57,7 +42,4 @@ runs:
         architecture: ${{ inputs.architecture }}
     - name: Install setuptools
       run: pip install setuptools
-      shell: pwsh
-    - name: Install cloudflare-cli
-      run: npm install -g cloudflare-cli
       shell: pwsh
