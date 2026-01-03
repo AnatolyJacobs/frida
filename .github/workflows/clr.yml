@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path build) { Remove-Item build -Recurse -Force }
-          .\configure --prefix=$env:FRIDA_PREFIX --host=windows-x86_64 -md `
+          .\configure --prefix=$env:FRIDA_PREFIX --host=windows-x86_64-md `
             --enable-frida-clr --disable-frida-python --disable-frida-tools `
             -- -Dfrida-core:compiler_backend=disabled
           make
