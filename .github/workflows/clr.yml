@@ -1,51 +1,97 @@
 name: CLR
 
-on:
-  workflow_dispatch:
-
+on: 
+ workflow_dispatch:
+ 
 env:
   FRIDA_COMPILER_MOD: subprojects/frida-core/src/compiler/go.mod
+  ANDROID_NDK_VERSION: r25b
 
 jobs:
-  frida-clr-windows:
-    name: Build Frida.dll (x86_64)
+  frida-windows-intel:
+    needs: sdk-windows
+    strategy:
+      matrix:
+        include:
+          - { arch: x86,    sys: MINGW32,    pkg: 'mingw-w64-i686-gcc'            }
+          - { arch: x86_64, sys: MINGW64,    pkg: 'mingw-w64-x86_64-gcc'          }
+      fail-fast: false
     runs-on: windows-latest
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up environment
         uses: ./.github/actions/setup-windows-env
         with:
-          aws-access-key-id: ${{ secrets.S3ACCESSKEY }}
-          aws-secret-access-key: ${{ secrets.S3SECRETKEY }}
-          cloudflare-email: ${{ secrets.CFEMAIL }}
-          cloudflare-token: ${{ secrets.CFTOKEN }}
-          architecture: x64
-
+          aws-access-key-id: ${{ secrets.S3_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.S3_SECRET_KEY }}
+          cloudflare-email: ${{ secrets.CF_EMAIL }}
+          cloudflare-token: ${{ secrets.CF_TOKEN }}
+          architecture: ${{ matrix.arch == 'x86_64' && 'x64' || matrix.arch }}
+      - name: Install MinGW toolchain for cgo support
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          install: ${{ matrix.pkg }}
       - name: Grab frida-core
         run: python tools/ensure-submodules.py frida-core
-
-      - name: Install Go toolchain
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ env.FRIDA_COMPILER_MOD }}
-          cache-dependency-path: ${{ env.FRIDA_COMPILER_MOD }}
-
       - name: Build .NET bindings
-        shell: pwsh
-        run: |
-          if (Test-Path build) { Remove-Item build -Recurse -Force }
-          .\configure --prefix=$env:FRIDA_PREFIX --host=windows-x86_64-md `
-            --enable-frida-clr --disable-frida-python --disable-frida-tools `
-            -- -Dfrida-core:compiler_backend=disabled
-          make
-          make install
-
+        run: >-
+          Remove-Item build -Recurse
+          && .\configure
+          --prefix=$Env:FRIDA_PREFIX
+          --host=windows-${{ matrix.arch }}-md
+          --enable-frida-clr
+          --disable-frida-python
+          --disable-frida-tools
+          --
+          "-Dfrida-core:compiler_backend=disabled"
+          && .\make install
       - name: Upload .NET bindings
         uses: actions/upload-artifact@v4
         with:
-          name: frida-clr-windows-x86_64
+          name: frida-clr-windows-${{ matrix.arch }}
           path: ${{ env.FRIDA_PREFIX }}/bin/Frida.dll
+
+  toolchain-windows:
+    strategy:
+      matrix:
+        arch: [x86]
+      fail-fast: false
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Set up environment
+        uses: ./.github/actions/setup-windows-env
+        with:
+          aws-access-key-id: ${{ secrets.S3_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.S3_SECRET_KEY }}
+          cloudflare-email: ${{ secrets.CF_EMAIL }}
+          cloudflare-token: ${{ secrets.CF_TOKEN }}
+      - name: Roll toolchain
+        run: python releng\deps.py roll toolchain windows-${{ matrix.arch }}
+
+  sdk-windows:
+    needs: toolchain-windows
+    strategy:
+      matrix:
+        arch: [x86, x86_64]
+        config: [md]
+      fail-fast: false
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+      - name: Set up environment
+        uses: ./.github/actions/setup-windows-env
+        with:
+          aws-access-key-id: ${{ secrets.S3_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.S3_SECRET_KEY }}
+          cloudflare-email: ${{ secrets.CF_EMAIL }}
+          cloudflare-token: ${{ secrets.CF_TOKEN }}
+      - name: Roll SDK
+        run: python releng\deps.py roll sdk windows-${{ matrix.arch }}-${{ matrix.config }} --activate
