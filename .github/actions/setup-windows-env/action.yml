@@ -2,16 +2,16 @@ name: Set up Windows environment
 description: Set up everything needed to build and release things on Windows
 inputs:
   aws-access-key-id:
-    required: true
+    required: false
     description: The aws-access-key-id used to authenticate with AWS
   aws-secret-access-key:
-    required: true
+    required: false
     description: The aws-secret-access-key used to authenticate with AWS
   cloudflare-email:
-    required: true
+    required: false
     description: The email used to authenticate with Cloudflare
   cloudflare-token:
-    required: true
+    required: false
     description: The token used to authenticate with Cloudflare
   architecture:
     description: The target architecture
